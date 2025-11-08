@@ -1,5 +1,6 @@
 package com.poc.ex.controller;
 
+import com.poc.ex.mapper.PersonMapperService;
 import com.poc.ex.model.Person;
 import com.poc.ex.model.dto.PersonDTO;
 import com.poc.ex.model.enumeration.AgeType;
@@ -8,13 +9,9 @@ import com.poc.ex.service.PersonService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +21,7 @@ import java.util.Optional;
 public class PersonController {
 
     private final PersonService personService;
+    private final PersonMapperService personMapperService;
 
     @GetMapping("/person/{id}")
     public ResponseEntity<Object> getOnePerson(@PathVariable(value = "id") Long id) {
@@ -88,35 +86,25 @@ public class PersonController {
     }
 
     @PostMapping
-    public ResponseEntity<Object> savePerson(@RequestParam String name,
-                                             @RequestParam LocalDate birthDate,
-                                             @RequestParam LocalDate hireDate) {
+    public ResponseEntity<Object> savePerson(@Valid @RequestBody PersonDTO personDto) {
 
-        log.info("state=init-save-person , name={}, birth_date={}, hire_date={}", name, birthDate, hireDate);
+        log.info("state=init-save-person , name={}, birth_date={}, hire_date={}", personDto.name(), personDto.birthDate(), personDto.hireDate());
         try {
 
-            var person = Person.builder()
-                    .name(name)
-                    .birthDate(birthDate)
-                    .hireDate(hireDate)
-                    .updateDate(LocalDateTime.now(ZoneId.of("UTC")))
-                    .createDate(LocalDateTime.now(ZoneId.of("UTC")))
-                    .build();
+            var person = personMapperService.toPerson(personDto);
             personService.save(person);
-            log.info("state=end-success-save-person , name={}, birth_date={}, hire_date={}", name, birthDate, hireDate);
+            log.info("state=end-success-save-person , name={}, birth_date={}, hire_date={}", personDto.name(), personDto.birthDate(), personDto.hireDate());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(person);
         } catch (Exception e) {
-            log.error("state=error-save-person, name={}, birth_date={}, hire_date={}", name, birthDate, hireDate, e);
+            log.error("state=error-save-person, name={}, birth_date={}, hire_date={}", personDto.name(), personDto.birthDate(), personDto.hireDate(), e);
             return ResponseEntity.internalServerError().body("Internal server error");
         }
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Object> updatePerson(@PathVariable(value = "id") Long id,
-                                             @RequestParam String name,
-                                             @RequestParam LocalDate birthDate,
-                                             @RequestParam LocalDate hireDate) {
+                                               @Valid @RequestBody PersonDTO personDto) {
 
         log.info("state=init-update-person , id={}", id);
         try {
@@ -125,17 +113,13 @@ public class PersonController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Person not found");
             }
 
-            var updatedPerson = person.get();
-            updatedPerson.setName(name);
-            updatedPerson.setBirthDate(birthDate);
-            updatedPerson.setHireDate(hireDate);
-            updatedPerson.setUpdateDate(LocalDateTime.now(ZoneId.of("UTC")));
+            var updatedPerson = personMapperService.toExistsPerson(person, personDto, true);
             personService.save(updatedPerson);
             log.info("state=end-success-update-person , id={} ", id);
 
             return ResponseEntity.status(HttpStatus.OK).body(updatedPerson);
         } catch (Exception e) {
-            log.error("state=error-update-person, id={}", id , e);
+            log.error("state=error-update-person, id={}", id, e);
             return ResponseEntity.internalServerError().body("Internal server error");
         }
     }
@@ -152,17 +136,13 @@ public class PersonController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Person not found");
             }
 
-            var updatedPerson = person.get();
-            updatedPerson.setName(!StringUtils.isBlank(personDto.name()) ? personDto.name() : person.map(Person::getName).orElseThrow(IllegalArgumentException::new));
-            updatedPerson.setBirthDate(Optional.ofNullable(personDto.birthDate()).isPresent() ? personDto.birthDate() : person.map(Person::getBirthDate).orElseThrow(IllegalArgumentException::new));
-            updatedPerson.setHireDate(Optional.ofNullable(personDto.hireDate()).isPresent() ? personDto.hireDate() : person.map(Person::getHireDate).orElseThrow(IllegalArgumentException::new));
-            updatedPerson.setUpdateDate(LocalDateTime.now(ZoneId.of("UTC")));
+            var updatedPerson = personMapperService.toExistsPerson(person, personDto, false);
             personService.save(updatedPerson);
             log.info("state=end-success-partial-update-person , id={} ", id);
 
             return ResponseEntity.status(HttpStatus.OK).body(updatedPerson);
         } catch (Exception e) {
-            log.error("state=error-partial-update-person, id={}", id , e);
+            log.error("state=error-partial-update-person, id={}", id, e);
             return ResponseEntity.internalServerError().body("Internal server error");
         }
     }
