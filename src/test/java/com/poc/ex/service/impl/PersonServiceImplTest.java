@@ -1,6 +1,8 @@
 package com.poc.ex.service.impl;
 
+import com.poc.ex.mapper.PersonMapperService;
 import com.poc.ex.model.Person;
+import com.poc.ex.model.dto.PersonDTO;
 import com.poc.ex.model.enumeration.AgeType;
 import com.poc.ex.model.enumeration.SalaryType;
 import com.poc.ex.repository.PersonRepository;
@@ -24,6 +26,9 @@ class PersonServiceImplTest {
     @Mock
     private PersonRepository personRepository;
 
+    @Mock
+    private PersonMapperService personMapperService;
+
     @InjectMocks
     private PersonServiceImpl personService;
 
@@ -34,74 +39,85 @@ class PersonServiceImplTest {
 
     @Test
     void shouldSavePerson() {
-        Person person = new Person();
-        personService.save(person);
-        verify(personRepository, times(1)).save(person);
+        Person mockPerson = Person.builder().id(1L).name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
+        PersonDTO mockPersonDTO = PersonDTO.builder().name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
+
+        when(personMapperService.toPerson(mockPersonDTO)).thenReturn(mockPerson);
+
+        personService.savePerson(mockPersonDTO);
+        verify(personRepository, times(1)).save(mockPerson);
     }
 
     @Test
     void shouldFindPersonById() {
-        Person person = new Person();
-        person.setId(1L);
-        when(personRepository.findById(1L)).thenReturn(Optional.of(person));
+        Person mockPerson = Person.builder().name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
+        PersonDTO mockPersonDTO = PersonDTO.builder().name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
 
-        Optional<Person> result = personService.findById(1L);
+        when(personMapperService.toPersonDTO(mockPerson)).thenReturn(mockPersonDTO);
+        when(personRepository.findById(1L)).thenReturn(Optional.of(mockPerson));
+        Optional<PersonDTO> result = personService.findOnePerson(1L);
 
         assertTrue(result.isPresent());
-        assertEquals(1L, result.get().getId());
         verify(personRepository).findById(1L);
     }
 
     @Test
     void shouldFindAllPersonsOrderedByName() {
-        List<Person> mockList = List.of(new Person(), new Person());
-        when(personRepository.findAllByOrderByNameAsc()).thenReturn(mockList);
+        Person mockPerson = Person.builder().name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
+        PersonDTO mockPersonDTO = PersonDTO.builder().name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
+        List<Person> mockPersonList = List.of(mockPerson);
 
-        List<Person> result = personService.findAllOrderByName();
+        when(personMapperService.toPersonDTO(mockPerson)).thenReturn(mockPersonDTO);
+        when(personRepository.findAllByOrderByNameAsc()).thenReturn(mockPersonList);
+        List<PersonDTO> result = personService.findAllPersonOrderByName();
 
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
         verify(personRepository).findAllByOrderByNameAsc();
     }
 
     @Test
     void shouldDeletePerson() {
-        Person person = new Person();
-        personService.delete(person);
-        verify(personRepository).delete(person);
+        Person mockPerson = Person.builder().id(1L).name("Person name").birthDate(LocalDate.now()).hireDate(LocalDate.now()).build();
+
+        when(personRepository.findById(1L)).thenReturn(Optional.ofNullable(mockPerson));
+        personService.deletePerson(1L);
+
+        assertNotNull(mockPerson);
+        verify(personRepository).delete(mockPerson);
     }
 
     @Test
     void shouldCalculateAgeInYears() {
         LocalDate birthDate = LocalDate.now().minusYears(30);
-        long age = personService.calculateAge(birthDate, AgeType.years);
+        long age = personService.calculatePersonAge(birthDate, AgeType.years);
         assertEquals(30, age);
     }
 
     @Test
     void shouldCalculateAgeInMonths() {
         LocalDate birthDate = LocalDate.now().minusMonths(18);
-        long age = personService.calculateAge(birthDate, AgeType.months);
+        long age = personService.calculatePersonAge(birthDate, AgeType.months);
         assertEquals(18, age);
     }
 
     @Test
     void shouldCalculateAgeInDays() {
         LocalDate birthDate = LocalDate.now().minusDays(500);
-        long age = personService.calculateAge(birthDate, AgeType.days);
+        long age = personService.calculatePersonAge(birthDate, AgeType.days);
         assertEquals(500, age);
     }
 
     @Test
     void shouldThrowExceptionForInvalidAgeType() {
         LocalDate birthDate = LocalDate.now().minusYears(10);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculateAge(birthDate, null));
+        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonAge(birthDate, null));
     }
 
     @Test
     void shouldCalculateFullSalaryAfter3Years() {
         LocalDate hireDate = LocalDate.now().minusYears(3);
 
-        BigDecimal salary = personService.calculateSalary(hireDate, SalaryType.full);
+        BigDecimal salary = personService.calculatePersonSalary(hireDate, SalaryType.full);
 
         BigDecimal expected = INITIAL_SALARY;
         for (int i = 0; i < 3; i++) {
@@ -115,8 +131,8 @@ class PersonServiceImplTest {
     void shouldCalculateMinSalaryAfter2Years() {
         LocalDate hireDate = LocalDate.now().minusYears(2);
 
-        BigDecimal fullSalary = personService.calculateSalary(hireDate, SalaryType.full);
-        BigDecimal minSalary = personService.calculateSalary(hireDate, SalaryType.min);
+        BigDecimal fullSalary = personService.calculatePersonSalary(hireDate, SalaryType.full);
+        BigDecimal minSalary = personService.calculatePersonSalary(hireDate, SalaryType.min);
 
         BigDecimal expected = fullSalary.divide(MIN_SALARY, 2, BigDecimal.ROUND_UP);
         assertEquals(0, expected.compareTo(minSalary));
@@ -125,29 +141,29 @@ class PersonServiceImplTest {
     @Test
     void shouldThrowExceptionForInvalidSalaryType() {
         LocalDate hireDate = LocalDate.now().minusYears(2);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculateSalary(hireDate, null));
+        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonSalary(hireDate, null));
     }
 
     @Test
     void shouldThrowExceptionForNullBirthDate() {
-        assertThrows(IllegalArgumentException.class, () -> personService.calculateAge(null, AgeType.years));
+        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonAge(null, AgeType.years));
     }
 
     @Test
     void shouldThrowExceptionForFutureBirthDate() {
         LocalDate futureDate = LocalDate.now().plusDays(1);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculateAge(futureDate, AgeType.years));
+        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonAge(futureDate, AgeType.years));
     }
 
     @Test
     void shouldThrowExceptionForNullHireDate() {
-        assertThrows(IllegalArgumentException.class, () -> personService.calculateSalary(null, SalaryType.full));
+        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonSalary(null, SalaryType.full));
     }
 
     @Test
     void shouldThrowExceptionForFutureHireDate() {
         LocalDate futureDate = LocalDate.now().plusMonths(1);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculateSalary(futureDate, SalaryType.full));
+        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonSalary(futureDate, SalaryType.full));
     }
 
 }
