@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.4</version>
+		<version>3.3.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.poc</groupId>
@@ -117,24 +117,6 @@
 						</exclude>
 					</excludes>
 				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>org.springdoc</groupId>
-				<artifactId>springdoc-openapi-maven-plugin</artifactId>
-				<version>1.5</version>
-				<executions>
-					<execution>
-						<id>generate-openapi-doc</id>
-						<goals>
-							<goal>generate</goal>
-						</goals>
-						<configuration>
-							<outputFileName>openapi.yaml</outputFileName>
-							<outputDir>${project.basedir}/src/main/resources</outputDir>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 
 		</plugins>

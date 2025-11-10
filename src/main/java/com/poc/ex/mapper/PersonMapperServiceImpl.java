@@ -2,7 +2,7 @@ package com.poc.ex.mapper;
 
 import com.poc.ex.model.Person;
 import com.poc.ex.model.dto.PersonDTO;
-import jakarta.persistence.EntityNotFoundException;
+import com.poc.ex.validation.exception.PersonNotFoundException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
@@ -29,26 +29,25 @@ public class PersonMapperServiceImpl implements PersonMapperService {
     }
 
     @Override
-    public Person toExistsPerson(Optional<Person> person, PersonDTO personDTO, boolean isUpdateAll) {
+    public Person toExistsPerson(Person person, PersonDTO personDTO, boolean isUpdateAll) {
+        if(Optional.ofNullable(person).isEmpty()) throw  new PersonNotFoundException();
         return isUpdateAll ? this.toAllFieldsExistsPerson(person, personDTO) : this.toSomeFieldsExistsPerson(person, personDTO);
     }
 
-    private Person toAllFieldsExistsPerson(Optional<Person> person, PersonDTO personDTO) {
-        var updatedPerson = person.orElseThrow(() -> new EntityNotFoundException("Person not found"));
-        updatedPerson.setName(personDTO.name());
-        updatedPerson.setBirthDate(personDTO.birthDate());
-        updatedPerson.setHireDate(personDTO.hireDate());
-        updatedPerson.setUpdateDate(LocalDateTime.now(ZoneId.of("UTC")));
-        return updatedPerson;
+    private Person toAllFieldsExistsPerson(Person person, PersonDTO personDTO) {
+        person.setName(personDTO.name());
+        person.setBirthDate(personDTO.birthDate());
+        person.setHireDate(personDTO.hireDate());
+        person.setUpdateDate(LocalDateTime.now(ZoneId.of("UTC")));
+        return person;
     }
 
-    private Person toSomeFieldsExistsPerson(Optional<Person> person, PersonDTO personDTO) {
-        var updatedPerson = person.orElseThrow(() -> new EntityNotFoundException("Person not found"));
-        updatedPerson.setName(!StringUtils.isBlank(personDTO.name()) ? personDTO.name() : person.map(Person::getName).orElseThrow(IllegalArgumentException::new));
-        updatedPerson.setBirthDate(Optional.ofNullable(personDTO.birthDate()).isPresent() ? personDTO.birthDate() : person.map(Person::getBirthDate).orElseThrow(IllegalArgumentException::new));
-        updatedPerson.setHireDate(Optional.ofNullable(personDTO.hireDate()).isPresent() ? personDTO.hireDate() : person.map(Person::getHireDate).orElseThrow(IllegalArgumentException::new));
-        updatedPerson.setUpdateDate(LocalDateTime.now(ZoneId.of("UTC")));
-        return updatedPerson;
+    private Person toSomeFieldsExistsPerson(Person person, PersonDTO personDTO) {
+        person.setName(!StringUtils.isBlank(personDTO.name()) ? personDTO.name() : person.getName());
+        person.setBirthDate(Optional.ofNullable(personDTO.birthDate()).isPresent() ? personDTO.birthDate() : person.getBirthDate());
+        person.setHireDate(Optional.ofNullable(personDTO.hireDate()).isPresent() ? personDTO.hireDate() : person.getHireDate());
+        person.setUpdateDate(LocalDateTime.now(ZoneId.of("UTC")));
+        return person;
     }
 
 }
