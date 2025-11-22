@@ -4,10 +4,11 @@ import com.poc.ex.mapper.PersonMapperService;
 import com.poc.ex.model.Person;
 import com.poc.ex.model.dto.PersonDTO;
 import com.poc.ex.model.enumeration.AgeType;
+import com.poc.ex.model.enumeration.ErrorValidation;
 import com.poc.ex.model.enumeration.SalaryType;
 import com.poc.ex.repository.PersonRepository;
 import com.poc.ex.service.PersonService;
-import com.poc.ex.validation.exception.PersonNotFoundException;
+import com.poc.ex.validation.exception.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,7 +53,11 @@ public class PersonServiceImpl implements PersonService {
     public void savePerson(PersonDTO personDTO) {
         log.info("state=init-save-person, person={}", personDTO);
         Person person = personMapperService.toPerson(personDTO);
-        personRepository.save(person);
+        try {
+            personRepository.save(person);
+        } catch (Exception ex) {
+            throw new DatabaseSaveException();
+        }
         log.info("state=end-success-save-person, person={}", personDTO);
     }
 
@@ -61,7 +66,11 @@ public class PersonServiceImpl implements PersonService {
         log.info("state=init-update-person, person={}", personDTO);
         Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
         var updatedPerson = personMapperService.toExistsPerson(person, personDTO, true);
-        personRepository.save(updatedPerson);
+        try {
+            personRepository.save(updatedPerson);
+        } catch (Exception ex) {
+            throw new DatabaseUpdateAllException();
+        }
         log.info("state=end-success-update-person, person={}", personDTO);
     }
 
@@ -70,7 +79,11 @@ public class PersonServiceImpl implements PersonService {
         log.info("state=init-partial-update-person, person={}", personDTO);
         Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
         var updatedPerson = personMapperService.toExistsPerson(person, personDTO, false);
-        personRepository.save(updatedPerson);
+        try {
+            personRepository.save(updatedPerson);
+        } catch (Exception ex) {
+            throw new DatabaseUpdateSomeException();
+        }
         log.info("state=end-success-partial-update-person, person={}", personDTO);
     }
 
@@ -78,7 +91,11 @@ public class PersonServiceImpl implements PersonService {
     public void deletePerson(Long id) {
         log.info("state=init-delete-person, id={}", id);
         Person person = personRepository.findById(id).orElseThrow(PersonNotFoundException::new);
-        personRepository.delete(person);
+        try {
+            personRepository.delete(person);
+        } catch (Exception ex) {
+            throw new DatabaseDeleteException();
+        }
         log.info("state=end-success-delete-person, id={}", id);
     }
 
@@ -86,7 +103,7 @@ public class PersonServiceImpl implements PersonService {
     public long findPersonAge(Long id, AgeType ageType) {
         log.info("state=init-find-person-age , id={}", id);
         Optional<PersonDTO> personDTO = this.findOnePerson(id);
-        long age = this.calculatePersonAge(personDTO.map(PersonDTO::birthDate).orElseThrow(IllegalArgumentException::new), ageType);
+        long age = this.calculatePersonAge(personDTO.map(PersonDTO::birthDate).orElseThrow(), ageType);
         log.info("state=end-success-find-person-age , id={} ", id);
         return age;
     }
@@ -95,36 +112,42 @@ public class PersonServiceImpl implements PersonService {
     public BigDecimal findPersonSalary(Long id, SalaryType salaryType) {
         log.info("state=init-find-person-salary , id={}", id);
         Optional<PersonDTO> personDTO = this.findOnePerson(id);
-        BigDecimal salary = this.calculatePersonSalary(personDTO.map(PersonDTO::hireDate).orElseThrow(IllegalArgumentException::new), salaryType);
+        BigDecimal salary = this.calculatePersonSalary(personDTO.map(PersonDTO::hireDate).orElseThrow(), salaryType);
         log.info("state=end-success-find-person-salary , id={} ", id);
         return salary;
     }
 
     long calculatePersonAge(LocalDate birthDate, AgeType ageType) {
         this.validateDate(birthDate);
-        if(ageType == null ) { throw new IllegalArgumentException("Invalid calculate age type"); }
-        LocalDate today = LocalDate.now();
-        return switch(ageType){
-            case AgeType.days -> ChronoUnit.DAYS.between(birthDate, today);
-            case AgeType.months -> ChronoUnit.MONTHS.between(birthDate, today);
-            case AgeType.years -> ChronoUnit.YEARS.between(birthDate, today);
-        };
+        if(ageType == null ) { throw new PersonIllegalArgumentException(ErrorValidation.INVALID_PERSON_ILLEGAL_ARGUMENT_AGE_TYPE); }
+        try {
+            LocalDate today = LocalDate.now();
+            return switch(ageType){
+                case AgeType.days -> ChronoUnit.DAYS.between(birthDate, today);
+                case AgeType.months -> ChronoUnit.MONTHS.between(birthDate, today);
+                case AgeType.years -> ChronoUnit.YEARS.between(birthDate, today);
+            };
+        } catch (Exception ex) {
+            throw new PersonCalculateAgeException();
+        }
     }
 
     BigDecimal calculatePersonSalary(LocalDate hireDate, SalaryType salaryType) {
-        this.validateDate(hireDate);
-        if(salaryType == null ) { throw new IllegalArgumentException("Invalid calculate salary type"); }
-        return switch(salaryType){
-            case SalaryType.full -> this.calculateFullSalary(hireDate);
-            case SalaryType.min -> this.calculateMinSalary(hireDate);
-        };
+        if(salaryType == null ) { throw new PersonIllegalArgumentException(ErrorValidation.INVALID_PERSON_ILLEGAL_ARGUMENT_SALARY_TYPE); }
+        try{
+            return switch(salaryType) {
+                case SalaryType.full -> this.calculateFullSalary(hireDate);
+                case SalaryType.min -> this.calculateMinSalary(hireDate);
+            };
+        } catch (Exception ex) {
+            throw new PersonCalculateSalaryException();
+        }
     }
 
     BigDecimal calculateFullSalary(LocalDate hireDate) {
-        this.validateDate(hireDate);
         long hireYears = this.calculateHireYears(hireDate);
         BigDecimal salary = INITIAL_SALARY;
-        while(hireYears > 0){
+        while(hireYears > 0) {
             salary = salary.add(salary.multiply(PERCENT_INCRISE_SALARY).add(FIXED_INCRISE_SALARY));
             hireYears--;
         }
@@ -132,15 +155,14 @@ public class PersonServiceImpl implements PersonService {
     }
 
     BigDecimal calculateMinSalary(LocalDate hireDate) {
-        this.validateDate(hireDate);
         BigDecimal fullSalary = this.calculateFullSalary(hireDate);
         return fullSalary.divide(MIN_SALARY, 2 , RoundingMode.UP);
     }
 
     void validateDate(LocalDate date) {
-        if(Optional.ofNullable(date).isEmpty()){ throw new IllegalArgumentException("Invalid date"); }
+        if(Optional.ofNullable(date).isEmpty()){ throw new PersonIllegalArgumentException(ErrorValidation.INVALID_PERSON_ILLEGAL_ARGUMENT_EMPTY_DATE); }
         LocalDate today = LocalDate.now();
-        if(date.isAfter(today)) { throw new IllegalArgumentException("Invalid future date"); }
+        if(date.isAfter(today)) { throw new PersonIllegalArgumentException(ErrorValidation.INVALID_PERSON_ILLEGAL_ARGUMENT_FUTURE_DATE); }
     }
 
     Long calculateHireYears(LocalDate hireDate) {

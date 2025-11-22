@@ -6,6 +6,8 @@ import com.poc.ex.model.dto.PersonDTO;
 import com.poc.ex.model.enumeration.AgeType;
 import com.poc.ex.model.enumeration.SalaryType;
 import com.poc.ex.repository.PersonRepository;
+import com.poc.ex.validation.exception.PersonCalculateSalaryException;
+import com.poc.ex.validation.exception.PersonIllegalArgumentException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -117,7 +119,7 @@ class PersonServiceImplTest {
     @Test
     void shouldThrowExceptionForInvalidAgeType() {
         LocalDate birthDate = LocalDate.now().minusYears(10);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonAge(birthDate, null));
+        assertThrows(PersonIllegalArgumentException.class, () -> personService.calculatePersonAge(birthDate, null));
     }
 
     @Test
@@ -148,29 +150,29 @@ class PersonServiceImplTest {
     @Test
     void shouldThrowExceptionForInvalidSalaryType() {
         LocalDate hireDate = LocalDate.now().minusYears(2);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonSalary(hireDate, null));
+        assertThrows(PersonIllegalArgumentException.class, () -> personService.calculatePersonSalary(hireDate, null));
     }
 
     @Test
     void shouldThrowExceptionForNullBirthDate() {
-        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonAge(null, AgeType.years));
+        assertThrows(PersonIllegalArgumentException.class, () -> personService.calculatePersonAge(null, AgeType.years));
     }
 
     @Test
     void shouldThrowExceptionForFutureBirthDate() {
         LocalDate futureDate = LocalDate.now().plusDays(1);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonAge(futureDate, AgeType.years));
+        assertThrows(PersonIllegalArgumentException.class, () -> personService.calculatePersonAge(futureDate, AgeType.years));
     }
 
     @Test
     void shouldThrowExceptionForNullHireDate() {
-        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonSalary(null, SalaryType.full));
+        assertThrows(PersonCalculateSalaryException.class, () -> personService.calculatePersonSalary(null, SalaryType.full));
     }
 
     @Test
     void shouldThrowExceptionForFutureHireDate() {
         LocalDate futureDate = LocalDate.now().plusMonths(1);
-        assertThrows(IllegalArgumentException.class, () -> personService.calculatePersonSalary(futureDate, SalaryType.full));
+        assertThrows(PersonCalculateSalaryException.class, () -> personService.calculatePersonSalary(futureDate, SalaryType.full));
     }
 
 }

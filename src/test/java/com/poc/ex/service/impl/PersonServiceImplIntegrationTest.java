@@ -6,6 +6,7 @@ import com.poc.ex.model.enumeration.AgeType;
 import com.poc.ex.model.enumeration.SalaryType;
 import com.poc.ex.repository.PersonRepository;
 import com.poc.ex.service.PersonService;
+import com.poc.ex.validation.exception.PersonIllegalArgumentException;
 import com.poc.ex.validation.exception.PersonNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -151,8 +152,8 @@ class PersonServiceImplIntegrationTest {
     @Test
     void shouldThrowWhenInvalidInputsForCalculations() {
         Person p = persistPerson("INVALIDS", LocalDate.now().minusYears(20), LocalDate.now().minusYears(1));
-        assertThrows(IllegalArgumentException.class, () -> personService.findPersonAge(p.getId(), null));
-        assertThrows(IllegalArgumentException.class, () -> personService.findPersonSalary(p.getId(), null));
+        assertThrows(PersonIllegalArgumentException.class, () -> personService.findPersonAge(p.getId(), null));
+        assertThrows(PersonIllegalArgumentException.class, () -> personService.findPersonSalary(p.getId(), null));
     }
 
 }

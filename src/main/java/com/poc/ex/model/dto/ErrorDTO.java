@@ -7,7 +7,7 @@ import java.util.List;
 
 @Builder
 public record ErrorDTO (@JsonFormat(pattern="dd-MM-yyyy HH:mm:ss") LocalDateTime dateTime,
-                       Integer code,
+                       String code,
                        String status,
                        List<String> errors) {
 }
